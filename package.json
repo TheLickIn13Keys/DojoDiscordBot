@@ -10,10 +10,12 @@
   "license": "ISC",
   "dependencies": {
     "@spyte-corp/discord.js-remove-on-reaction": "^1.0.5",
+    "discord-auditlog": "^2.2.3",
     "discord.js": "^12.3.1",
     "discord.js-commando": "git+https://github.com/discordjs/Commando.git",
     "discord.js-menu": "^1.0.3",
     "discord.js-reaction-menu": "^1.1.1",
+    "discordjs-prompter": "^2.0.4",
     "dominant-color": "0.0.1",
     "dotenv": "^8.2.0",
     "image-average-color": "^1.0.0",
