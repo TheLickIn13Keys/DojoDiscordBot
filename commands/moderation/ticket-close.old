@@ -1,0 +1,47 @@
+const commando = require('discord.js-commando');
+const Discord = require("discord.js");
+
+module.exports = class ticketClose extends commando.Command {
+    constructor(client){
+        super(client, {
+            name: 'ticket-close',
+            aliases: ['ticket-stop', 'close-ticket'],
+            group: 'moderation',
+            memberName: 'ticket close',
+            description: 'closes an open ticket',
+            argsType: 'multiple',
+            userPermissions: ['MANAGE_GUILD']
+        })
+    }
+    async run(msg, args){
+        const enmap = require("enmap");
+
+        const settings = new enmap({
+          name: "settings",
+          autoFetch: true,
+          cloneLevel: "deep",
+          fetchAll: true
+        });
+        
+        if (!msg.channel.name.includes("ticket-"))
+        return msg.channel.send("You cannot use that here!");
+      let channel = msg.channel
+      channel.msgs.fetch({limit:80})
+      .then(function(msgs) {
+          let content = msgs.map(msg => msg.content && msg.content).join("\n");
+          msg.author.send(`Transcript for your ticket in ${msg.guild.name} Server`);
+          msg.author.send({ files: [{ name: "test.txt", attachment: Buffer.from(content) }] });
+        msg.channel.send(`I have dmed you transcript if your dms are opened. Deleting channel in 20 seconds`)
+        msg.channel.send(`Just in case Your dms are closed here is transcript`)
+        msg.channel.send({ files: [{ name: "test.txt", attachment: Buffer.from(content) }] });  
+  
+  
+        })
+         setTimeout(function() {
+          msg.channel.delete();
+                      }, 20000);
+
+        
+
+    }
+}

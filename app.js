@@ -1,12 +1,20 @@
 const commando = require('discord.js-commando');
 const path = require('path');
 const Discord = require("discord.js");
-const PREFIX = '/';
+const prefix = '/';
 var mysql = require('mysql');
 var cron = require('node-cron');
 var MojangAPI = require('mojang-api');
 const Auditlog = require("discord-auditlog");
 var numPlayers = 0;
+const enmap = require("enmap");
+
+const settings = new enmap({
+  name: "settings",
+  autoFetch: true,
+  cloneLevel: "deep",
+  fetchAll: true
+});
 
 var fs = require('fs'),
     request = require('request');
@@ -21,7 +29,9 @@ const {
 const client = new commando.CommandoClient({
     owner: "620845493957951498",
     commandPrefix: "/",
-
+    unknownCommandResponse: false,
+    disableEveryone: true,
+    partials: ["MESSAGE", "USER", "REACTION"],
 });
 
 var connection = mysql.createConnection({
@@ -159,9 +169,14 @@ client.on('guildMemberRemove', member => {
 
 client.on('ready', () => {
 
-    client.user.setActivity("mcdojo.club", {
-        type: "PLAYING"
-    });
+    client.user.setPresence({
+        status: 'online',
+        activity: {
+            name: 'mcdojo.club',
+            type: 'STREAMING',
+            url: 'https://www.twitch.tv/TrashToggled'
+        }
+    })
 
     console.log(`Logged in as ${client.user.tag}`);
     connection.connect(function(error) {
@@ -204,7 +219,51 @@ client.on("messageReactionAdd", async (reaction, user) => {
 
 })
 
-client.on('message', msg =>{
+client.on('message', async msg =>{
+
+    /*if(msg.content == "lebruh"){
+        msg.channel.send("Legend has it that 4 messages were lost in the void...")
+    }
+    */
+
+    if(msg.channel.id == "767911106542567424"){
+
+
+
+        try {
+            const message = await msg.channel.messages.fetch('767985355814207498');
+            let str = message.content;
+            let arr = str.split(' ');
+            let res = arr[4];
+            let count = res.match(/\d*$/);
+            await message.edit("legend has it that " + res.substr(0, count.index) + (++count[0]) + " messages were lost in the void...");
+        } catch(err) {
+            console.error(err);
+        }
+        msg.delete();
+        
+    }
+    /*if(msg.content.startsWith("legend has it that")){
+        if (msg.author.bot) {return};
+        let str = msg.content;
+        let arr = str.split(' ');
+        let res = arr[4];
+        var count = res.match(/\d*$/);
+        msg.channel.send("legend has it that " + res.substr(0, count.index) + (++count[0]) + " messages were lost in the void...");
+    }*/
+    /*cron.schedule('*//*10 * * * *', async () => {
+        const message = await msg.channel.messages.fetch('767985355814207498');
+        let str = message.content;
+        let arr = str.split(' ');
+        let res = arr[4];
+        let count = res.match(/\d*$/);
+        message.channel.setTopic("legend has it that " + res.substr(0, count.index) + (++count[0]) + " messages were lost in the void...");
+        console.log("Updating topic");
+      });*/
+
+
+
+    
 
     if(msg.content.includes("/help")){
 
@@ -221,6 +280,136 @@ client.on('message', msg =>{
 
     }
 })
+
+client.on("message", async message => {
+    if (message.author.bot) return;
+    if (message.content.indexOf(prefix) !== 0) return;
+  
+    const args = message.content
+      .slice(prefix.length)
+      .trim()
+      .split(/ +/g);
+    const command = args.shift().toLowerCase();
+  
+    if (command == "ticket-setup") {
+      if (!message.member.hasPermission("ADMINISTRATOR"))
+        return message.reply(`You do not permission to run this command!`);
+      let channel = message.mentions.channels.first();
+      if (!channel) return message.reply("Usage: `/ticket-setup #channel`");
+      const rle = message.guild.roles.cache.find(role => role.name === "STAFF");
+      if (!rle)
+        return message.reply(
+          "Hmmm I coudl't find a role called `STAFF` Make sure you have a role called `STAFF`"
+        );
+  
+      let sent = await channel.send(
+        new Discord.MessageEmbed()
+          .setTitle("Ticket System")
+          .setDescription("React to open a ticket!")
+          .setFooter("Ticket System")
+          .setColor("ff00ff")
+          .setThumbnail("https://i.imgur.com/xKOe84J.png")
+      );
+  
+      sent.react("🎫");
+      settings.set(`${message.guild.id}-ticket`, sent.id);
+  
+      message.channel.send("Ticket System Setup Done!");
+    }
+
+  
+  if (command == "ticket-close") {
+      if (!message.channel.name.includes("ticket-"))
+        return message.channel.send("You cannot use that here!");
+      let channel = message.channel
+      channel.messages.fetch({limit:80})
+      .then(function(messages) {
+          let content = messages.map(message => message.content && message.content).join("\n");
+          message.author.send(`Transcript for your ticket in ${message.guild.name} Server`);
+          message.author.send({ files: [{ name: "transcript.txt", attachment: Buffer.from(content) }] });
+        message.channel.send(`I have dmed you transcript if your dms are opened. Deleting channel in 20 seconds`)
+        message.channel.send(`Just in case Your dms are closed here is transcript`)
+        message.channel.send({ files: [{ name: "transcript.txt", attachment: Buffer.from(content) }] });  
+  
+  
+        })
+         setTimeout(function() {
+          message.channel.delete();
+                      }, 20000);
+    }
+  });
+  
+  client.on("messageReactionAdd", async (reaction, user, message) => {
+    if (user.partial) await user.fetch();
+    if (reaction.partial) await reaction.fetch();
+    if (reaction.message.partial) await reaction.message.fetch();
+    if (user.bot) return;
+  
+    let ticketid = await settings.get(`${reaction.message.guild.id}-ticket`);
+    /*let nameOfChannel = `ticket-${user.username}`;
+
+    if ((reaction.message.guild.channels.cache.find(c => c.name === nameOfChannel))){
+        reaction.message.guild.channels.cache.find(c => nameOfChannel).send(`${user}, you already have an open ticket!`)
+    }*/
+    if (!ticketid) return;
+    
+    if (reaction.message.id == ticketid && reaction.emoji.name == "🎫") {
+      reaction.users.remove(user);
+  
+      reaction.message.guild.channels
+        .create(`ticket-${user.username}`, {
+          permissionOverwrites: [
+            {
+              id: user.id,
+              allow: ["SEND_MESSAGES", "VIEW_CHANNEL"]
+            },
+            {
+              id: reaction.message.guild.roles.everyone,
+              deny: ["VIEW_CHANNEL"]
+            },
+            {
+              id: reaction.message.guild.roles.cache.find(
+                role => role.name === "ADMIN"
+              ),
+              allow: ["SEND_MESSAGES", "VIEW_CHANNEL"]
+            },
+            {
+                id: reaction.message.guild.roles.cache.find(
+                  role => role.name === "MOD"
+                ),
+                allow: ["SEND_MESSAGES", "VIEW_CHANNEL"]
+            },
+            {
+                id: reaction.message.guild.roles.cache.find(
+                  role => role.name === "HELPER"
+                ),
+                allow: ["SEND_MESSAGES", "VIEW_CHANNEL"]
+            },
+            {
+                id: reaction.message.guild.roles.cache.find(
+                  role => role.name === "MANAGER"
+                ),
+                allow: ["SEND_MESSAGES", "VIEW_CHANNEL"]
+            }
+          ],
+          type: "text"
+        })
+        .then(async channel => {
+            let category = channel.guild.channels.cache.find(c => c.name == "💓| Support" && c.type == "category");
+
+            if (!category) throw new Error("Category channel does not exist");
+            channel.setParent(category.id);
+          channel.send(
+            `<@${user.id}>`,
+            new Discord.MessageEmbed()
+              .setTitle("Welcome to your ticket!")
+              .setDescription("Support Team will be with you shortly")
+              .setColor("ff00ff")
+              .setThumbnail("https://i.imgur.com/xKOe84J.png")
+          );
+        });
+    }
+  });
 //logger.all(client);
 
 client.login("NzU0NDE5ODc2NTAzNzQ4NjY4.X10eQw.YcKkOoDVfMZ3JMtgb5dJ0W_A2vk");

@@ -26,7 +26,7 @@ module.exports = class embed extends commando.Command {
                 .setTitle("Welcome to the MCDojo Embed Builder!")
                 .setURL("https://minecraftdojo.club")
                 .setColor("FF00FF")
-                .setDescription("Type EMPTY (case sensitive) to leave an empty field\n or type CANCEL to stop (case sensitive)")
+                .setDescription("Type EMPTY (case sensitive) to leave an empty field\n or type CANCEL at any point to stop (case sensitive)")
             msg.channel.send(embedToStart);
 
 
@@ -252,8 +252,8 @@ module.exports = class embed extends commando.Command {
                     msg.channel.send("Ok, leaving the timestamp empty");
 
                 }
-                else{
-                    mainEmbed.setTimestamp(timestamp)
+                else if(timestamp.toString() == "true"){
+                    mainEmbed.setTimestamp(new Date())
                 }
             } catch (error) {
 
@@ -292,72 +292,109 @@ module.exports = class embed extends commando.Command {
                 
             }
 
-
-
-
-
-            prompter.message(msg.channel, {
-                question: 'What channel do you want the embed in (must be a channel ID)?',
-                userId: msg.author.id,
-                max: 1,
-                timeout: 100000,
-            }).then(responses, async => {
-                // If no responses, the time ran out
-                if (!responses.size) {
-                return msg.channel.send(`You took too long!`);
-                }
-
-                // Gets the first message in the collection
-                const response = responses.first();
-                if(response.toString() == "CANCEL"){
+            try {
+                var channel = await getChannel(msg)
+                if(channel.toString() == "CANCEL"){
                     return msg.channel.send("Cancelling")
                 }
-                try {
+                if(channel.toString() == "EMPTY"){
 
-                    client.channels.cache.get(response).send(mainEmbed);
-                    msg.channel.send("Alright, thank you for using the MCDojo Embed Builder!");
+                    msg.channel.send("Ok, cancelled");
 
-                } catch (error) {
-                    msg.channel.send("It seems like you made an error when creating the Embed, please try again.")
                 }
+                else{
+                    try {
+                        msg.channel.send("Here is a preview of your embed")
+                        msg.channel.send(mainEmbed)
+        
+                        var toUse = await askToSend(msg);
+                        if(toUse.toString() == 'yes'){
+                            try {
+                                this.client.channels.cache.get(channel.toString()).send(mainEmbed);
+                                msg.channel.send("Alright, thank you for using the MCDojo Embed Builder!");
+                            } catch (error) {
+                                msg.channel.send("It seems like you made an error when creating the Embed, please try again. The error is below, please contact a dev or owner for help")
+                                msg.channel.send(error.toString())
+                                console.log(error);
+                            }
+        
+                        }
+                        else{
+                            msg.channel.send("Alright, thank you for using the MCDojo Embed Builder!");
+                            return;
+                        }
+                        
+                    } catch (error) {
+                        msg.channel.send(error);
+                    }
+                }
+            } catch (error) {
 
+                msg.channel.send(error.toString());
+                return;
                 
-    
-                
-                
-            }); 
-            
-            
+            } 
 
     }
 }
 
 function askToSend(msg) {
 
-    new Promise((resolve, reject) =>{
+    return new Promise((resolve, reject) =>{
 
-        prompter.message(msg.channel, {
-            question: 'Would you like to send it? (yes or no)?',
-            userId: msg.author.id,
-            max: 1,
-            timeout: 100000,
-        }).then(responses => {
-            // If no responses, the time ran out
-            if (!responses.size) {
-            return msg.channel.send(`You took too long!`);
-            }
-
-            // Gets the first message in the collection
-            const response = responses.first();
-
-            resolve(response);
-            
-
-            
-            
-        }); 
+        prompter
+        .reaction(msg.channel, {
+          question: 'Would you like to send it?',
+          userId: msg.author.id,
+          timeout: 100000,
+        })
+        .then(response => {
+          // Response is false if time runs out
+          if (!response) return msg.reply('you took too long!');
+          // Returns 'yes' if user confirms and 'no' if ser cancels.
+          if (response === 'yes') resolve('yes');
+          if (response === 'no') resolve('no');
+        });
     })
     
+}
+
+function sleep(ms) {
+    return new Promise((resolve) => {
+      setTimeout(resolve, ms);
+    });
+}   
+
+function getChannel(msg) {
+    return new Promise((resolve, reject) => {
+
+                prompter.message(msg.channel, {
+                    question: 'What channel would do you want to send it in? (Must be a channel ID)?',
+                    userId: msg.author.id,
+                    max: 1,
+                    timeout: 100000,
+                }).then(responses => {
+                    // If no responses, the time ran out
+                    if (!responses.size) {
+                    return reject(`You took too long!`);
+                    }
+                    // Gets the first message in the collection
+                    const response = responses.first();
+            
+                    if(response == "EMPTY"){
+        
+                        resolve("EMPTY");
+                        return;
+        
+                    }
+                    else{
+        
+                        resolve(response);
+        
+                    }
+                    
+                });
+            });
 }
 
 function getFieldTitle(msg) {
@@ -614,7 +651,7 @@ function getTimestamp(msg) {
                     // Gets the first message in the collection
                     const response = responses.first();
             
-                    if(response == "false"){
+                    if(response == "false" || response == "EMPTY"){
     
                         resolve("EMPTY");
                         return;
@@ -622,7 +659,7 @@ function getTimestamp(msg) {
                     }
                     else{
         
-                        resolve(new Date());
+                        resolve(response);
         
                     }
                     
@@ -670,7 +707,7 @@ function getColor(msg) {
 
                 //Color
                 prompter.message(msg.channel, {
-                    question: 'Color?',
+                    question: 'Color (Must be a hex code or be within the range 0 - 16777215)?',
                     userId: msg.author.id,
                     max: 1,
                     timeout: 100000,

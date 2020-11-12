@@ -1,0 +1,52 @@
+const commando = require('discord.js-commando');
+const Discord = require("discord.js");
+
+module.exports = class ticketSetup extends commando.Command {
+    constructor(client){
+        super(client, {
+            name: 'ticket-setup',
+            aliases: ['ticket-make', 'ticket-start'],
+            group: 'moderation',
+            memberName: 'ticket setup',
+            description: 'initializes the ticket system',
+            argsType: 'multiple',
+            userPermissions: ['MANAGE_GUILD']
+        })
+    }
+    async run(msg, args){
+        const enmap = require("enmap");
+
+    const settings = new enmap({
+    name: "settings",
+    autoFetch: true,
+    cloneLevel: "deep",
+    fetchAll: true
+    });
+        
+        if (!msg.member.hasPermission("ADMINISTRATOR"))
+        return msg.reply(`You do not permission to run this command!`);
+      let channel = msg.mentions.channels.first();
+      if (!channel) return msg.reply("Usage: `/ticket-setup #channel`");
+      const rle = msg.guild.roles.cache.find(role => role.name === "STAFF");
+      if (!rle)
+        return msg.reply(
+          "Hmmm I coudl't find a role called `STAFF` Make sure you have a role called `STAFF`"
+        );
+  
+      let sent = await channel.send(
+        new Discord.MessageEmbed()
+          .setTitle("Ticket System")
+          .setDescription("React to open a ticket!")
+          .setFooter("Ticket System")
+          .setColor("00ff00")
+      );
+  
+      sent.react("🎫");
+      settings.set(`${msg.guild.id}-ticket`, sent.id);
+  
+      msg.channel.send("Ticket System Setup Done!");
+
+        
+
+    }
+}
